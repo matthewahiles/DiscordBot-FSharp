@@ -13,7 +13,7 @@ let mainTask =
         let client = new DiscordSocketClient();
         client.add_Log(fun message -> async {logEvent message} |> Async.StartAsTask :> _)
         client.add_MessageReceived(fun message -> async {logMessage message} |> Async.StartAsTask :> _)
-        let token = "NDY1NzY5OTMyNDAwMDk5MzI5.DinAHQ.1mPtI_rV9bHRswqZZxxLYYe6RKI"
+        let token = ""
         do! Async.AwaitTask(client.LoginAsync(TokenType.Bot, token))
         do! Async.AwaitTask(client.StartAsync())
         do! Async.AwaitTask(Task.Delay(-1))
