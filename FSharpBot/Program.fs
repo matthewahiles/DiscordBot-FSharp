@@ -1,46 +1,37 @@
-﻿namespace FSharpBot
+﻿open System
+open Discord
+open Discord.WebSocket
+open System.Threading.Tasks
+open Microsoft.Extensions.Configuration
+open System.IO
 
-module core =
+let logEvent (message:LogMessage) =
+        Console.WriteLine(message.ToString())
+let logMessage (message: SocketMessage) =
+        Console.WriteLine(message.Content.ToString())
+let getConfig =
+    let builder = new ConfigurationBuilder()
+    do builder.SetBasePath( Directory.GetCurrentDirectory() ) |> ignore
+    do builder.AddJsonFile("config.json") |> ignore
+    builder.Build()
 
-    open System
-    open DSharpPlus
-    open DSharpPlus.CommandsNext
-    open System.Threading.Tasks
-    open Microsoft.Extensions.Configuration
-    open System.IO
+let private client = new DiscordSocketClient()
+let private config = getConfig
 
-    let getConfig =
-        let builder = new ConfigurationBuilder()
-        do builder.SetBasePath( Directory.GetCurrentDirectory() ) |> ignore
-        do builder.AddJsonFile("config.json") |> ignore
-        builder.Build()
+let registerEvents =
+    async {
+        client.add_Log(fun message -> async {logEvent message} |> Async.StartAsTask :> _)
+        client.add_MessageReceived(fun message -> async {logMessage message} |> Async.StartAsTask :> _)
+    }
 
-    let private config = getConfig
-
-    let getDiscordConfig =
-        let conf = new DiscordConfiguration()
-        conf.set_Token config.["BotToken"]
-        conf.set_TokenType TokenType.Bot
-        conf.set_UseInternalLogHandler true
-        conf.set_LogLevel LogLevel.Debug
-        conf
-
-    let getCommandsConfig =
-        let conf = new CommandsNextConfiguration()
-        conf.set_StringPrefix "!"
-        conf
-
-    let client =  new DiscordClient(getDiscordConfig)
-    let commands = client.UseCommandsNext(getCommandsConfig)
-
-    let mainTask =
-        async {
-            client.add_MessageCreated(fun e -> async { Console.WriteLine e.Message.Content } |> Async.StartAsTask :> _)
-            commands.RegisterCommands<BotCommands>()
-            client.ConnectAsync() |> Async.AwaitTask |> Async.RunSynchronously
-            do! Async.AwaitTask(Task.Delay(-1))
-        }
-    [<EntryPoint>]
-    let main argv =
-        Async.RunSynchronously(mainTask)
-        0
+let mainTask =
+    async {
+        do! registerEvents
+        do! Async.AwaitTask(client.LoginAsync(TokenType.Bot, config.["BotToken"]))
+        do! Async.AwaitTask(client.StartAsync())
+        do! Async.AwaitTask(Task.Delay(-1))
+    }
+[<EntryPoint>]
+let main argv =
+    Async.RunSynchronously(mainTask)
+    0
